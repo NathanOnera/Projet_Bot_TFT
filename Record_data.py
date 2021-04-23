@@ -38,6 +38,7 @@ def initialize():
     print('Push 7 to localize the client')
     keyboard.wait('7')
     dim = localize_client()
+    return dim
 
 def localize_client():
     hwnd = win32gui.FindWindow(None, 'League of Legends (TM) Client') # Find the LoL client
@@ -231,7 +232,7 @@ def main():
     # Initialisation
     HexesPosition = pd.read_csv("data/csv_files/HexesPosition.csv",delimiter = ';')                         # Importation of the hex position from a CSV file              
     hexes = HexesPosition.values
-    initialize()
+    dim = initialize()
     flag = True
     while (flag == True):
         fn = datetime.now().strftime("%m%d%Y%H%M%S")
