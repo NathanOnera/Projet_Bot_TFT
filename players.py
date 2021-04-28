@@ -29,6 +29,7 @@ mat1dmg =  normalize_array(np.array(Image.open('data/red_circle/LookingAtDmg.jpg
 mat1notdmg = normalize_array(np.array(Image.open('data/red_circle/NotLookingAtDmg.jpg')).flatten()*1.0)
 mat_ennemy_not_pov = np.array(Image.open('data/red_circle/ennemy_not_pov.jpg'))
 mat_ennemy_pov = np.array(Image.open('data/red_circle/ennemy_pov.jpg'))
+mat_us = np.array(Image.open('data/red_circle/us.jpg'))
 matPOV = normalize_array(np.array(Image.open('data/red_circle/POV.jpg')).flatten()*1.0)
 matPOVcarou = normalize_array(np.array(Image.open('data/red_circle/POVcarou.jpg')).flatten()*1.0)
 
@@ -37,7 +38,7 @@ k = 0
 
 
 class player:
-    def __init__(self,index,key):
+    def __init__(self,key,order):
 ##        self.hp = 100
 ##        self.gold = 0
 ##        self.lastFaced = 10
@@ -49,9 +50,9 @@ class player:
 ##        self.updated = False
 ##        self.items = []
 ##        self.power = 0
-        self.index = index
         self.key = key
         self.img = Image.fromarray(self.key)
+        self.order = order
 
 ##    def update_pv(hp):
 ##        self.hp = a
@@ -91,12 +92,10 @@ class game:
     def get_POV(self):
         mat = normalize_array(np.array(self.imPOV).flatten()*1.0)
         if np.inner(mat,matPOV) > 0.98:
-            self.POV = 'Ennemy'
-            if np.inner(mat,matPOV) < np.inner(mat,matPOVcarou):
-                self.POV = 'Ennemy carou'
+            self.POV = False
         else:
             print(str(np.inner(mat,matPOV)))
-            self.POV = 'Our'
+            self.POV = True
 
     def get_stage(self):
         # Spot if we are in the early stages
@@ -131,51 +130,54 @@ class game:
         if verbose:
             print(str_print)
 
-    def find_player_pos(self):
-        if self.dmgPOV == False:
-            mat_right = np.array(self.imright)
-            # Ennemy not POV
-            result = cv.matchTemplate(mat_ennemy_not_pov,mat_right,3)
-            self.nbPlayers = len(result[result[:,104]>0.90])
-            
-            idpos = np.nonzero(result[:,104] > 0.90)
-            idposx = idpos[0]
-            idposy = (np.ones(idpos[0].shape)*104).astype(int)
-            idpos = np.array((idposx,idposy))
-            # Ennemy POV
-            result = cv.matchTemplate(mat_ennemy_pov,mat_right,3)
-            nbPlayersPOV = len(result[result[:,87]>0.95])
-            if nbPlayersPOV != 0:
-                idposx2 = np.nonzero(result[:,87] > 0.95)
-                idposx2 = idposx2[0]+3
-                idposy2 = (np.ones(idposx2[0].shape)*90).astype(int)
-                idposx = np.concatenate((idposx,idposx2),axis = None)
-                idposy = np.concatenate((idposy,idposy2),axis = None)
-                idpos = np.array((idposx,idposy))
-                self.ownPOV = False
-            self.playersPosition = idpos
-            if verbose:
-                if nbPlayersPOV == 0:
-                    print('There are ' + str(self.playersPosition.shape[1])+ ' ennemies visible, and we have our POV')
-                    self.ownPOV = True
-                else:
-                    print('There are ' + str(self.playersPosition.shape[1])+ ' ennemies visible, and we do not have our POV')
-                    self.ownPOV = False
-        else:
-            if verbose:
-                print('There are no visible players')
+    def localizePlayers(self):
+        mat_right = np.array(self.imright)
+        # First thing: localize ourself
+        result = cv.matchTemplate(mat_us,mat_right,3)
+        pLocUsx = np.nonzero(result[:,60] > 0.95)[0]
+        pLocUsy = (np.ones(pLocUsx.shape)*60).astype(int)
+        # Second thing: localize ennemies
+        #First case: we are not on their POV
+        result = cv.matchTemplate(mat_ennemy_not_pov,mat_right,3)
+        pLocEnx = np.nonzero(result[:,104] > 0.95)[0]
+        pLocEny = (np.ones(pLocEnx.shape)*104).astype(int)
+        # Second case: we are on their POV
+        result = cv.matchTemplate(mat_ennemy_pov,mat_right,3)
+        pLocEnx2 = np.nonzero(result[:,87] > 0.98)[0]+2
+        pLocEny2 = (np.ones(pLocEnx2.shape)*90).astype(int)
+        pLocx = np.concatenate((pLocUsx,pLocEnx,pLocEnx2),axis = None)
+        pLocy = np.concatenate((pLocUsy,pLocEny,pLocEny2),axis = None)
+        pLoc = np.array((pLocx,pLocy))
+        self.pLoc = pLoc
+        if verbose:
+            if self.POV == True:
+                print('There are ' + str(self.pLoc.shape[1])+ ' ennemies visible, and we have our POV')
+            else:
+                print('There are ' + str(self.pLoc.shape[1])+ ' ennemies visible, and we do not have our POV')
+        # At the end of this function, we have an array with the (x,y) of the players position, including ours. Our position is always the first element. If it is an ennemy POV, its position is the last element.
+        # Question: How can we define an 'order', that is order according to x
+        temp = pLoc[0].copy() # sort according to x
+        temp.sort()
+        pOrder = []
+        for i in range(len(pLoc[0])):
+            for j in range(len(temp)):
+                if pLoc[0,i] == temp[j]:
+                    pOrder.append(j+1)
+        self.pOrder = pOrder
+        self.pLocxSorted = temp
+        self.pLocx = pLoc[0]
+        
 
     def initialize_players(self):
-        if self.playersInitialized == False:
-            if self.dmgPOV == False:
-                list_players = []
-                for i in range(self.playersPosition.shape[1]):
-                    key = np.array(self.imright.crop([crop_id[0]+self.playersPosition[1,i],crop_id[1]+self.playersPosition[0,i],crop_id[2]+self.playersPosition[1,i],crop_id[3]+self.playersPosition[0,i]]))
-                    list_players.append(player(i,key))
-                    Image.fromarray(key).save('data/checks/keyPlayer_'+str(i)+'.jpg')
-                self.players = list_players
-                print('We have initialized ' + str(len(self.players)) + ' players!')
-                self.playersInitialized = True
+        list_players = []
+        list_players.append(player(np.array(Image.open('data/checks/keyPlayer.jpg')),self.pOrder[0]))
+        for i in range(1,self.pLoc.shape[1]):
+            key = np.array(self.imright.crop([crop_id[0]+self.pLoc[1,i],crop_id[1]+self.pLoc[0,i],crop_id[2]+self.pLoc[1,i],crop_id[3]+self.pLoc[0,i]]))
+            list_players.append(player(key,self.pOrder[i]))
+            Image.fromarray(key).save('data/checks/keyPlayer_'+str(i)+'.jpg')
+        self.players = list_players
+        print('We have initialized ' + str(len(self.players)) + ' players!')
+        self.playersInitialized = True
 
     def __init__(self,im):
         self.playersInitialized = False
@@ -184,37 +186,50 @@ class game:
     def update(self,im):
         self.im = im
         self.crop_image()
-        self.get_dmgPOV()
-        self.get_POV()
         self.get_stage()
+        self.get_POV()
         self.get_dmgPOV()
-        self.find_player_pos()
-        self.initialize_players()
-        self.find_players()
+        if self.dmgPOV == False:
+            self.localizePlayers()
+            if self.playersInitialized == False:
+                self.initialize_players()
+            self.find_players()
+        if self.POV == False:
+            pass
+##            self.get_PlayerPOV()
+
+    def associateBoard(self):
+        if self.POV == True:
+            self.player[0].boardbench = self.imboardbench
+        else:
+            for player in self.players:
+                if player.pos == self.nbPlayers:
+                    player.boardbench = self.imboardbench
 
     def find_players(self):
-        if self.playersInitialized == True:
-            if self.dmgPOV == False:
-                playersPosition = []
-                for i in range(self.playersPosition.shape[1]):
-                    mat1 =  normalize_array(np.array(self.imright.crop([crop_id[0]+self.playersPosition[1,i],crop_id[1]+self.playersPosition[0,i],crop_id[2]+self.playersPosition[1,i],crop_id[3]+self.playersPosition[0,i]])).flatten())
-                    val = 0
-                    index = 0
-                    for j in range(len(self.players)):
-                        mat2 = normalize_array(np.array(self.players[j].key).flatten())
-                        val_ = np.inner(mat1,mat2)
-                        if val_ > val:
-                            index = j
-                            val = val_
-                    self.players[index].pos = i
-                    print(val)
-                    playersPosition.append(index)
-                self.playersPosition = playersPosition
-                print(playersPosition)
-                if len(playersPosition) == len(set(playersPosition)):
-                    print('We found every player!')
-                else:
-                    print('We have found the same player twice !!!!!!')
+        playersPosition = []
+##        playersPosition.append(self.pOrder[0])
+        self.players[0].order = self.pOrder[0]
+        for i in range(1,self.pLoc.shape[1]):
+            mat1 =  normalize_array(np.array(self.imright.crop([crop_id[0]+self.pLoc[1,i],crop_id[1]+self.pLoc[0,i],crop_id[2]+self.pLoc[1,i],crop_id[3]+self.pLoc[0,i]])).flatten())
+            val = 0
+            index = 0
+            for j in range(1,len(self.players)):
+                mat2 = normalize_array(np.array(self.players[j].key).flatten())
+                val_ = np.inner(mat1,mat2)
+                if val_ > val:
+                    index = j
+                    val = val_
+            self.players[index].order = self.pOrder[i]
+            print(val)
+            print(index)
+            playersPosition.append(index)
+        self.playersPosition = playersPosition
+        print(playersPosition)
+        if len(playersPosition) == len(set(playersPosition)):
+            print('We found every player!')
+        else:
+            print('We have found the same player twice !!!!!!')
 
 ##    def update_championsOut():
 ##        self.championsOut = championsOut
@@ -222,8 +237,12 @@ class game:
 ##            self.championsOut = self.championsOut + self.players.championsOwned
 ##        self.championsRemaining = championsCopies - self.championsOut
 
-
-
+G = game(Image.open('data/analyze_boards/05.jpg'))
+##for player in G.players:
+##    print(player.order)
+G.update(Image.open('data/analyze_boards/18.jpg'))
+for player in G.players:
+	print(player.order)
 
         
     
