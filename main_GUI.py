@@ -15,7 +15,7 @@ import tkinter as tk
 
 import players as p
 import Record_data as rec
-import output as out
+##import output as out
 
 # Data to load
 crop_right = [1720,80,1920,800]
@@ -64,7 +64,7 @@ class Application(tk.Tk):
     def game_Info_Widgets(self):
         self.remove_Widgets()
         self.label_stage = tk.Label(self, text = 'Current stage: ' + self.game.stage)
-        self.label_POV = tk.Label(self, text = 'Current POV: ' +  self.game.POV)
+        self.label_POV = tk.Label(self, text = 'Current POV: ' +  str(self.game.POV))
         self.label_dmgPOV = tk.Label(self, text = 'Current dmg POV: ' + str(self.game.dmgPOV))
         self.button_update = tk.Button(self, text = 'Update the data!', command=self.update_GameState)
         self.button_update_players = tk.Button(self, text = 'Error in the players!', command=self.update_Players)
@@ -72,7 +72,7 @@ class Application(tk.Tk):
         self.label_stage.grid()
         self.label_POV.grid()
         self.label_dmgPOV.grid()
-        tk.Label(self, text = 'There are ' + str(self.game.nbPlayers) + 'players.')
+##        tk.Label(self, text = 'There are ' + str(self.game.nbPlayers) + 'players.')
         self.ReserveImages = []
         for player in self.game.players:
             image_ = player.img
@@ -80,7 +80,7 @@ class Application(tk.Tk):
             label_ = tk.Label(self, image=tkimage_)
             label_.image = tkimage_
             label_.grid(column = 0)
-            tk.Label(self, text = 'Current rank: ' + str(player.pos)).grid(row = label_.grid_info()['row'],column = 1)
+            tk.Label(self, text = 'Current rank: ' + str(player.order)).grid(row = label_.grid_info()['row'],column = 1)
         self.button_update_players.grid(column = 0)
         self.button_update.grid(row = self.button_update_players.grid_info()['row'], column = 1)
         self.button_quit.grid(row = self.button_update_players.grid_info()['row'], column = 2)

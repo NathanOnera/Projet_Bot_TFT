@@ -237,12 +237,12 @@ class game:
 ##            self.championsOut = self.championsOut + self.players.championsOwned
 ##        self.championsRemaining = championsCopies - self.championsOut
 
-G = game(Image.open('data/analyze_boards/05.jpg'))
+##G = game(Image.open('data/analyze_boards/05.jpg'))
+####for player in G.players:
+####    print(player.order)
+##G.update(Image.open('data/analyze_boards/18.jpg'))
 ##for player in G.players:
-##    print(player.order)
-G.update(Image.open('data/analyze_boards/18.jpg'))
-for player in G.players:
-	print(player.order)
+##	print(player.order)
 
         
     
