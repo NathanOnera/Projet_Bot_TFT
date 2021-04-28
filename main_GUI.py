@@ -1,4 +1,4 @@
-from PIL import ImageGrab, Image
+from PIL import ImageGrab, Image, ImageTk
 import win32gui
 import time
 import keyboard
@@ -24,6 +24,9 @@ hexes = pd.read_csv("data/csv_files/HexesPosition.csv",delimiter = ';').values  
 crop_topright = [1885,130,1910,155]
 crop_POV = [855,926,1047,984]
 
+def normalize_array(arr):
+    return arr/np.linalg.norm(arr)
+
 class Application(tk.Tk):
     def __init__(self):
         print('Visual platform initialization')
@@ -43,53 +46,64 @@ class Application(tk.Tk):
             dim = win32gui.GetWindowRect(win32gui.FindWindow(None, 'League of Legends (TM) Client'))
             self.dim = dim
             self.prompt.set('Click OK to start recording data')
-            self.button.configure(text = 'OK', command=self.record_Data)
+            self.button.configure(text = 'OK', command=self.initialize_Game)
         except win32gui.error:
             print('Localization failed!')
             self.prompt.set('Localization failed! Try again!')
             self.button.configure(text = 'Try again!', command=self.initialize_Application)
         
-    def record_Data(self):
-        self.Game = initialize_Game(self.dim)
-        if self.Game.initialized == False:
+    def initialize_Game(self):
+        self.game = p.game(ImageGrab.grab(self.dim))
+        if self.game.playersInitialized == False:
             self.prompt.set('Initialization failed! Please try again')
-            self.button.configure(text = 'Try again!', command=self.record_Data)
+            self.button.configure(text = 'Try again!', command=self.initialize_Game)
         else:
             self.prompt.set('Game initialized!')
-            self.button.configure(text = 'Quit!', command=self.quit_Application)
+            self.button.configure(text = 'Show me the data!', command=self.main_Loop)
+
+    def game_Info_Widgets(self):
+        self.remove_Widgets()
+        self.label_stage = tk.Label(self, text = 'Current stage: ' + self.game.stage)
+        self.label_POV = tk.Label(self, text = 'Current POV: ' +  self.game.POV)
+        self.label_dmgPOV = tk.Label(self, text = 'Current dmg POV: ' + str(self.game.dmgPOV))
+        self.button_update = tk.Button(self, text = 'Update the data!', command=self.update_GameState)
+        self.button_update_players = tk.Button(self, text = 'Error in the players!', command=self.update_Players)
+        self.button_quit = tk.Button(self, text = 'Quit', command=self.quit_Application)
+        self.label_stage.grid()
+        self.label_POV.grid()
+        self.label_dmgPOV.grid()
+        tk.Label(self, text = 'There are ' + str(self.game.nbPlayers) + 'players.')
+        self.ReserveImages = []
+        for player in self.game.players:
+            image_ = player.img
+            tkimage_ = ImageTk.PhotoImage(image_)
+            label_ = tk.Label(self, image=tkimage_)
+            label_.image = tkimage_
+            label_.grid(column = 0)
+            tk.Label(self, text = 'Current rank: ' + str(player.pos)).grid(row = label_.grid_info()['row'],column = 1)
+        self.button_update_players.grid(column = 0)
+        self.button_update.grid(row = self.button_update_players.grid_info()['row'], column = 1)
+        self.button_quit.grid(row = self.button_update_players.grid_info()['row'], column = 2)
+
+    def remove_Widgets(self):
+        list_widgets = self.grid_slaves()
+        for item in list_widgets:
+            item.destroy()
+
+    def update_Players(self):
+        self.game.playersInitialized = False
+        self.game.update(ImageGrab.grab(self.dim))
+        self.game_Info_Widgets()
+
+    def update_GameState(self):
+        self.game.update(ImageGrab.grab(self.dim))
+        self.game_Info_Widgets()
+
+    def main_Loop(self):
+        self.game_Info_Widgets()
 
     def quit_Application(self):
         self.destroy()
-
-
-def normalize_array(arr):
-    return arr/np.linalg.norm(arr)
-
-def initialize():
-    print('Push 7 to localize the client')
-    flag = True
-    while flag:
-        keyboard.wait('7')
-        try:
-            dim = win32gui.GetWindowRect(win32gui.FindWindow(None, 'League of Legends (TM) Client'))
-            flag = False
-            print('Client localized')
-        except win32gui.error:
-            print('Localization failed! Push 7 when the client is open!')
-    return dim
-
-def initialize_Game(dim):
-    print('Push 7 to start the analyze')
-    keyboard.wait('7')
-    Game = p.game(ImageGrab.grab(dim))
-    flag = Game.initialized
-##    while flag == False:
-##        print('The analyse could not be analyzed. Push 7 again when analyze can start!')
-##        keyboard.wait('7')
-##        Game.update(ImageGrab.grab(dim))
-##        flag = Game.initialized
-    return Game
-        
 
 def main():
     App = Application()
