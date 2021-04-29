@@ -33,47 +33,16 @@ mat_us = np.array(Image.open('data/red_circle/us.jpg'))
 matPOV = normalize_array(np.array(Image.open('data/red_circle/POV.jpg')).flatten()*1.0)
 matPOVcarou = normalize_array(np.array(Image.open('data/red_circle/POVcarou.jpg')).flatten()*1.0)
 
-verbose = True
+verbose = False
 k = 0
 
 
 class player:
     def __init__(self,key,order):
-##        self.hp = 100
-##        self.gold = 0
-##        self.lastFaced = 10
-##        self.level = 1
-##        self.championsBoard = championsOwned
-##        self.championsBench = championsOwned
-##        self.championsOwned = championsOwned
-##        self.name = ''
-##        self.updated = False
-##        self.items = []
-##        self.power = 0
         self.key = key
         self.img = Image.fromarray(self.key)
         self.order = order
-
-##    def update_pv(hp):
-##        self.hp = a
-##
-##    def update_gold(gold):
-##        self.gold = gold
-##
-##    def update_level(level):
-##        self.level = level
-##
-##    def update_lastFaced(lastFaced):
-##        self.lastFaced = lastFaced
-##
-##    def update_championsOwned(co):
-##        self.championsOwned = co
-##
-##    def update_name(name):
-##        self.name = name
-##
-##    def update_img(self,im):
-##        self.img = im
+        self.boardbench = Image.open('data/analyze_boards/01.jpg')
 
 championsOut = np.zeros(len(championsName),dtype = int)
 
@@ -94,7 +63,8 @@ class game:
         if np.inner(mat,matPOV) > 0.98:
             self.POV = False
         else:
-            print(str(np.inner(mat,matPOV)))
+            if verbose:
+                print(str(np.inner(mat,matPOV)))
             self.POV = True
 
     def get_stage(self):
@@ -134,16 +104,31 @@ class game:
         mat_right = np.array(self.imright)
         # First thing: localize ourself
         result = cv.matchTemplate(mat_us,mat_right,3)
-        pLocUsx = np.nonzero(result[:,60] > 0.95)[0]
+        pLocUsx = np.nonzero(result[:,60] > 0.92)[0]
+        for i in range(len(pLocUsx)-1):
+            if pLocUsx[i+1]-pLocUsx[i] < 40:
+                pLocUsx = np.delete(pLocUsx,i+1)
+                i = i-1
         pLocUsy = (np.ones(pLocUsx.shape)*60).astype(int)
         # Second thing: localize ennemies
         #First case: we are not on their POV
         result = cv.matchTemplate(mat_ennemy_not_pov,mat_right,3)
-        pLocEnx = np.nonzero(result[:,104] > 0.95)[0]
+        pLocEnx = np.nonzero(result[:,104] > 0.92)[0]
+        for i in range(len(pLocEnx)-1):
+            if pLocEnx[i+1]-pLocEnx[i] < 40:
+                pLocEnx = np.delete(pLocEnx,i+1)
+                i = i-1
         pLocEny = (np.ones(pLocEnx.shape)*104).astype(int)
         # Second case: we are on their POV
         result = cv.matchTemplate(mat_ennemy_pov,mat_right,3)
-        pLocEnx2 = np.nonzero(result[:,87] > 0.98)[0]+2
+        pLocEnx2 = np.nonzero(result[:,87] > 0.92)[0]+2
+        del_ = []
+        for i in range(len(pLocEnx2)-1):
+            if pLocEnx2[i+1]-pLocEnx2[i] < 20:
+                del_.append(i)
+        pLocEnx2 = np.delete(pLocEnx2,del_)
+        if len(pLocEnx2) !=0:
+            self.POV = False
         pLocEny2 = (np.ones(pLocEnx2.shape)*90).astype(int)
         pLocx = np.concatenate((pLocUsx,pLocEnx,pLocEnx2),axis = None)
         pLocy = np.concatenate((pLocUsy,pLocEny,pLocEny2),axis = None)
@@ -166,7 +151,6 @@ class game:
         self.pOrder = pOrder
         self.pLocxSorted = temp
         self.pLocx = pLoc[0]
-        
 
     def initialize_players(self):
         list_players = []
@@ -176,7 +160,8 @@ class game:
             list_players.append(player(key,self.pOrder[i]))
             Image.fromarray(key).save('data/checks/keyPlayer_'+str(i)+'.jpg')
         self.players = list_players
-        print('We have initialized ' + str(len(self.players)) + ' players!')
+        if verbose:
+            print('We have initialized ' + str(len(self.players)) + ' players!')
         self.playersInitialized = True
 
     def __init__(self,im):
@@ -193,22 +178,18 @@ class game:
             self.localizePlayers()
             if self.playersInitialized == False:
                 self.initialize_players()
-            self.find_players()
-        if self.POV == False:
-            pass
-##            self.get_PlayerPOV()
+            if len(self.pLoc) != 0:
+                self.find_players()
+                self.associateBoard()
 
     def associateBoard(self):
         if self.POV == True:
-            self.player[0].boardbench = self.imboardbench
+            self.players[0].boardbench = self.imboardbench
         else:
-            for player in self.players:
-                if player.pos == self.nbPlayers:
-                    player.boardbench = self.imboardbench
+            self.players[self.playersPosition[-1]].boardbench = self.imboardbench
 
     def find_players(self):
         playersPosition = []
-##        playersPosition.append(self.pOrder[0])
         self.players[0].order = self.pOrder[0]
         for i in range(1,self.pLoc.shape[1]):
             mat1 =  normalize_array(np.array(self.imright.crop([crop_id[0]+self.pLoc[1,i],crop_id[1]+self.pLoc[0,i],crop_id[2]+self.pLoc[1,i],crop_id[3]+self.pLoc[0,i]])).flatten())
@@ -221,15 +202,18 @@ class game:
                     index = j
                     val = val_
             self.players[index].order = self.pOrder[i]
-            print(val)
-            print(index)
+            if verbose:
+                print(val)
+                print(index)
             playersPosition.append(index)
         self.playersPosition = playersPosition
-        print(playersPosition)
-        if len(playersPosition) == len(set(playersPosition)):
-            print('We found every player!')
-        else:
-            print('We have found the same player twice !!!!!!')
+        if verbose:
+            print(playersPosition)
+        if verbose:
+            if len(playersPosition) == len(set(playersPosition)):
+                print('We found every player!')
+            else:
+                print('We have found the same player twice !!!!!!')
 
 ##    def update_championsOut():
 ##        self.championsOut = championsOut
@@ -237,12 +221,11 @@ class game:
 ##            self.championsOut = self.championsOut + self.players.championsOwned
 ##        self.championsRemaining = championsCopies - self.championsOut
 
-##G = game(Image.open('data/analyze_boards/05.jpg'))
-####for player in G.players:
-####    print(player.order)
-##G.update(Image.open('data/analyze_boards/18.jpg'))
-##for player in G.players:
-##	print(player.order)
 
-        
+##G = game(Image.open('data/analyze_boards/04.jpg'))
+##G.players[-1].boardbench.show()
+
+
+
+
     
