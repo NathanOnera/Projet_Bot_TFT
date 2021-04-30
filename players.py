@@ -105,19 +105,21 @@ class game:
         # First thing: localize ourself
         result = cv.matchTemplate(mat_us,mat_right,3)
         pLocUsx = np.nonzero(result[:,60] > 0.92)[0]
+        del_ = []
         for i in range(len(pLocUsx)-1):
             if pLocUsx[i+1]-pLocUsx[i] < 40:
-                pLocUsx = np.delete(pLocUsx,i+1)
-                i = i-1
+                del_.append(i)
+        pLocUsx = np.delete(pLocUsx,del_)
         pLocUsy = (np.ones(pLocUsx.shape)*60).astype(int)
         # Second thing: localize ennemies
         #First case: we are not on their POV
         result = cv.matchTemplate(mat_ennemy_not_pov,mat_right,3)
         pLocEnx = np.nonzero(result[:,104] > 0.92)[0]
+        del_ = []
         for i in range(len(pLocEnx)-1):
             if pLocEnx[i+1]-pLocEnx[i] < 40:
-                pLocEnx = np.delete(pLocEnx,i+1)
-                i = i-1
+                del_.append(i)
+        pLocEnx = np.delete(pLocEnx,del_)
         pLocEny = (np.ones(pLocEnx.shape)*104).astype(int)
         # Second case: we are on their POV
         result = cv.matchTemplate(mat_ennemy_pov,mat_right,3)
