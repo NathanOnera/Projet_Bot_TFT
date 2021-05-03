@@ -3,6 +3,8 @@ import pandas as pd
 from PIL import ImageGrab, Image
 import cv2 as cv
 import glob
+import time
+from datetime import datetime
 
 def normalize_array(arr):
     return arr/np.linalg.norm(arr)
@@ -24,6 +26,8 @@ crop_boardbench = [250,80,1460,840]
 crop_topright = [1885,130,1910,155]
 crop_id = [-51,0,-8,20]
 crop_POV = [855,926,1047,984]
+crop_diffHBitem = [2,10,26,33]
+crop_diffHB2item = [5,12,29,35]
 
 mat1dmg =  normalize_array(np.array(Image.open('data/red_circle/LookingAtDmg.jpg')).flatten()*1.0)
 mat1notdmg = normalize_array(np.array(Image.open('data/red_circle/NotLookingAtDmg.jpg')).flatten()*1.0)
@@ -43,8 +47,39 @@ class player:
         self.img = Image.fromarray(self.key)
         self.order = order
         self.boardbench = Image.open('data/analyze_boards/01.jpg')
+        self.championsList = championsList.copy()
 
-championsOut = np.zeros(len(championsName),dtype = int)
+    def findItems(self):
+        toCompare = Image.open('data/items/spatula.jpg')
+        result = cv.matchTemplate(np.array(self.boardbench),np.array(toCompare),3)
+        min_val, max_val, min_loc, max_loc = cv.minMaxLoc(result)
+
+    def findChampion(self):
+        toCompare1 = Image.open('data/HB/HB1.jpg')
+        result1 = cv.matchTemplate(np.array(self.boardbench),np.array(toCompare1),3)
+        toCompare2 = Image.open('data/HB/HB2.jpg')
+        result2 = cv.matchTemplate(np.array(self.boardbench),np.array(toCompare2),3)
+        
+        index1 = np.nonzero(result1 > 0.97)
+        index2 = np.nonzero(result2 > 0.97)
+        for i in range(len(index1[0])):
+            print('new save')
+            temps = datetime.now().strftime("%m%d%Y%H%M%S%f")
+            fn = 'data/potential_items/' + temps + '.jpg'
+            self.boardbench.crop((index1[1][i] + crop_diffHBitem[0],index1[0][i]+ crop_diffHBitem[1],index1[1][i] + crop_diffHBitem[2],index1[0][i] + crop_diffHBitem[3])).save(fn)
+            time.sleep(0.1)
+                    
+        for i in range(len(index2[0])):
+            print('new save')
+            temps = datetime.now().strftime("%m%d%Y%H%M%S%f")
+            fn = 'data/potential_items/' + temps + '2222222222222.jpg'
+            self.boardbench.crop((index2[1][i] + crop_diffHB2item[0],index2[0][i]+ crop_diffHB2item[1],index2[1][i] + crop_diffHB2item[2],index2[0][i] + crop_diffHB2item[3])).save(fn)
+            time.sleep(0.1)
+        
+    def updateBoardBench(self,im):
+        self.boardbench = im
+        self.findItems()
+        self.findChampion()
 
 class game:
     def crop_image(self):
@@ -169,6 +204,7 @@ class game:
     def __init__(self,im):
         self.playersInitialized = False
         self.update(im)
+        self.championsList = championsList.copy()
         
     def update(self,im):
         self.im = im
@@ -186,9 +222,9 @@ class game:
 
     def associateBoard(self):
         if self.POV == True:
-            self.players[0].boardbench = self.imboardbench
+            self.players[0].updateBoardBench(self.imboardbench)
         else:
-            self.players[self.playersPosition[-1]].boardbench = self.imboardbench
+            self.players[self.playersPosition[-1]].updateBoardBench(self.imboardbench)
 
     def find_players(self):
         playersPosition = []
@@ -223,11 +259,17 @@ class game:
 ##            self.championsOut = self.championsOut + self.players.championsOwned
 ##        self.championsRemaining = championsCopies - self.championsOut
 
+# Item cropping
+# Image.open('data/analyze_boards/01.jpg').crop((927,547,951,570)).save('data/items/spatula.jpg')
 
-##G = game(Image.open('data/analyze_boards/04.jpg'))
-##G.players[-1].boardbench.show()
+# Position item vs HB:
+# 2 10 26 33
 
+# Health bar cropping
+#Image.open('data/analyze_boards/01.jpg').crop((925,537,930,543)).save('data/HB/HB1.jpg')
+#Image.open('data/analyze_boards/04.jpg').crop((866,363,874,369)).save('data/HB/HB2.jpg')
+list_item = glob.glob('data/analyze_boards/*.jpg')
+for item in list_item:
+    print('new jpg')
+    g = game(Image.open(item))
 
-
-
-    

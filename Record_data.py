@@ -9,7 +9,7 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 import glob
-from lobe import ImageModel
+#from lobe import ImageModel
 
 crop_stage = [780,35,820,55]
 crop_estage = [830,35,870,55]
@@ -64,8 +64,6 @@ def detect_empty_hexes(im,hexes):
         mat1 = np.array(img).flatten()
         mat2 = np.array(Image.open('data/naked_board/naked_board_'+str(i)+'.jpg')).flatten()
         diff_hex = cv.subtract(mat1,mat2)
-        occupation[0,i] = math.floor(np.mean(diff_hex))
-        if(occupation[0,i] < 3):
             occupation_boolean[0,i] = 0
             fn = datetime.now().strftime("%m%d%Y%H%M%S")
             img.save('data/generated_data/hexes/Empty'+fn+'.jpg')
