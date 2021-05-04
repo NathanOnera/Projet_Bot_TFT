@@ -70,15 +70,18 @@ class Application(tk.Tk):
         for i in range(2):
             self.top.grid_columnconfigure(i, weight=1)
             self.playersBoard.grid_columnconfigure(i, weight=1)
-            self.generalGameInfo.grid_columnconfigure(i, weight=1)
             self.bottomMenu.grid_columnconfigure(i, weight=1)
             self.top.grid_rowconfigure(i, weight=1)
             self.playersBoard.grid_rowconfigure(i, weight=1)
-            self.generalGameInfo.grid_rowconfigure(i, weight=1)
             self.bottomMenu.grid_rowconfigure(i, weight=1)
         for i in range(10):
             self.championsOut.grid_columnconfigure(i, weight=1)
             self.championsOut.grid_rowconfigure(i, weight=1)
+
+        for i in range(6):
+            self.generalGameInfo.grid_rowconfigure(i, weight=1)
+            self.generalGameInfo.grid_columnconfigure(i, weight=1)
+            
 
         ####### SEPARATORS CREATION #######
         self.separatorTopMiddle = tkinter.ttk.Separator(self, orient='horizontal')
@@ -104,24 +107,33 @@ class Application(tk.Tk):
         self.labelLabelOrder = tk.Label(self.generalGameInfo, text = 'Rank')
         self.labelLabelCurrentMinimapPosition = tk.Label(self.generalGameInfo, text = 'Current minimap position')
         self.labelLabelLittleLegend = tk.Label(self.generalGameInfo, text = 'Little Legend')
+        self.labelLabelMinimapPosition = tk.Label(self.generalGameInfo, text = 'Minimap Position')
+        self.labelLabelMinimapEmpty = tk.Label(self.generalGameInfo, text = 'Minimap Empty')
         # PLAYERS INFO
         self.listlabelInfoPlayersKey = []
         self.listlabelInfoPlayersLittleLegend = []
         self.listlabelInfoPlayersOrder = []
         self.listlabelInfoPlayersMinimapCurrentPosition = []
+        self.listlabelInfoPlayersMinimapPosition = []
+        self.listlabelInfoPlayersMinimapEmpty = []
         for player in self.game.players:
             tkimage_ = ImageTk.PhotoImage(player.imgKey)
             labelKey = tk.Label(self.generalGameInfo, image=tkimage_)
             labelKey.image = tkimage_
-            tkimage_ = ImageTk.PhotoImage(player.imgLittleLegend)
+            tkimage_ = ImageTk.PhotoImage(player.imgLittleLegendMinimap)
             labelLittleLegend = tk.Label(self.generalGameInfo, image=tkimage_)
             labelLittleLegend.image = tkimage_
             self.listlabelInfoPlayersKey.append(labelKey)
             self.listlabelInfoPlayersLittleLegend.append(labelLittleLegend)
-            labelOrder = tk.Label(self.generalGameInfo, text = str(player.order))
+            labelOrder = tk.Label(self.generalGameInfo, text = str(player.rank))
             labelMinimapCurrentPosition = tk.Label(self.generalGameInfo, text = str(player.minimapCurrentPosition))
+            labelMinimapPosition = tk.Label(self.generalGameInfo, text = str(player.minimapPosition))
+            labelMinimapEmpty = tk.Label(self.generalGameInfo, text = str(player.minimapEmpty))
             self.listlabelInfoPlayersOrder.append(labelOrder)
             self.listlabelInfoPlayersMinimapCurrentPosition.append(labelMinimapCurrentPosition)
+            self.listlabelInfoPlayersMinimapPosition.append(labelMinimapPosition)
+            self.listlabelInfoPlayersMinimapEmpty.append(labelMinimapEmpty)
+
 
         ## TOP RIGHT WINDOW
         # Menu button
@@ -199,12 +211,16 @@ class Application(tk.Tk):
         self.labelLabelLittleLegend.grid(row = 6, column = 1, sticky = '')
         self.labelLabelOrder.grid(row = 6, column = 2, sticky = 'e')
         self.labelLabelCurrentMinimapPosition.grid(row = 6, column = 3, sticky = 'e')
+        self.labelLabelMinimapEmpty.grid(row = 6, column = 4, sticky = 'e')
+        self.labelLabelMinimapPosition.grid(row = 6, column = 5, sticky = 'e')
         # PLAYERS INFO
         for i in range(len(self.game.players)):
             self.listlabelInfoPlayersKey[i].grid(column = 0, sticky='w')
             self.listlabelInfoPlayersLittleLegend[i].grid(row = self.listlabelInfoPlayersKey[i].grid_info()['row'], column = 1, sticky='')
             self.listlabelInfoPlayersOrder[i].grid(row = self.listlabelInfoPlayersKey[i].grid_info()['row'],column = 2, sticky='e')
             self.listlabelInfoPlayersMinimapCurrentPosition[i].grid(row = self.listlabelInfoPlayersKey[i].grid_info()['row'],column = 3, sticky='e')
+            self.listlabelInfoPlayersMinimapEmpty[i].grid(row = self.listlabelInfoPlayersKey[i].grid_info()['row'],column = 4, sticky='e')
+            self.listlabelInfoPlayersMinimapPosition[i].grid(row = self.listlabelInfoPlayersKey[i].grid_info()['row'],column = 5, sticky='e')
         
         ## TOP RIGHT WINDOW
         #BOARD PICTURES AND MENU BUTTON
@@ -248,7 +264,9 @@ class Application(tk.Tk):
         
         # PLAYERS INFO
         for i in range(len(self.game.players)):
-            self.listlabelInfoPlayersOrder[i].configure(text = str(self.game.players[i].order))
+            self.listlabelInfoPlayersOrder[i].configure(text = str(self.game.players[i].rank))
+            self.listlabelInfoPlayersMinimapPosition[i].configure(text = str(self.game.players[i].minimapPosition))
+            self.listlabelInfoPlayersMinimapEmpty[i].configure(text = str(self.game.players[i].minimapEmpty))
             self.listlabelInfoPlayersMinimapCurrentPosition[i].configure(text = str(self.game.players[i].minimapCurrentPosition))
         
         self.displayPlayerBoard()
@@ -282,15 +300,18 @@ class Application(tk.Tk):
 
     def threadUpdateGameState(self):
         self.flagAutoUpdate = True
+        k = 10
         while self.flagAutoUpdate:
             while self._pause:
                 pass
-            self.game.update(Image.open('data/analyze_boards/10.jpg'))
+            keyboard.wait('7')
+            self.game.update(Image.open('data/analyze_boards/' + str(k) + '.jpg'))
             for i in range(len(self.game.championsList)):
                 self.game.championsList.loc[i,'Out'] = i % (self.game.championsList.loc[i,'Copies']+1)
             self.updateAllWidgets()
-            time.sleep(4)
-
+#            time.sleep(4)
+            k = k+1
+            
     def playUpdateGameState(self):
         if self._thread is None:
             self._stop = False
@@ -307,7 +328,7 @@ class Application(tk.Tk):
 ##    def main_loop(self):
 ##        self.game_Info_Widgets()
 
-    def quit_Application(self):
+    def quit_Application(self): 
         self.destroy()
 
 def main():

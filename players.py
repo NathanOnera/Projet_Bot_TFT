@@ -29,9 +29,8 @@ crop_littleLegend = [44,1,64,21]
 crop_POV = [855,926,1047,984]
 crop_diffHBitem = [2,10,26,33]
 crop_diffHB2item = [5,12,29,35]
-#crop_littleLegend = [1868,217,1888,237]
 crop_minimap = [1750,870,1915,1035]
-crop_minimaps = [[10,20,60,60],[60,20,110,60],[110,20,160,60],[110,60,160,110],[110,115,160,165],[60,115,110,165],[10,115,60,165],[10,60,60,110]]
+crop_minimaps = [[60,20,110,60],[110,20,160,60],[110,60,160,110],[110,115,160,165],[60,115,110,165],[10,115,60,165],[10,60,60,110],[10,20,60,60]]
 
 mat1dmg =  normalize_array(np.array(Image.open('data/red_circle/LookingAtDmg.jpg')).flatten()*1.0)
 mat1notdmg = normalize_array(np.array(Image.open('data/red_circle/NotLookingAtDmg.jpg')).flatten()*1.0)
@@ -46,31 +45,57 @@ k = 0
 
 RecordNewItems = False
 
-
 class player:
-    def __init__(self,key,littleLegend,order):
+    def __init__(self,key,imgLittleLegend,minimap,rank):
+        # Player name as a key (image & array)
         self.key = key
         self.imgKey = Image.fromarray(self.key)
-        self.littleLegend = littleLegend
-        self.imgLittleLegend = Image.fromarray(self.littleLegend)
-        self.imgLittleLegendMinimap = self.imgLittleLegend.resize((13,13))
-        self.LittleLegendMinimap = np.array(self.imgLittleLegendMinimap)
-        self.minimapPosition = order
-        self.minimapCurrentPosition = order
-        self.order = order
+        # Player little legend -- right-hand side version(image & array)
+        self.imgLittleLegend = imgLittleLegend
+        self.littleLegend = np.array(self.imgLittleLegend)
+        # Player little legend -- minimap version (image & array)
+        self.imgLittleLegendMinimap = imgLittleLegend
+        self.littleLegendMinimap = np.array(self.imgLittleLegendMinimap)
+        # Position of the player's home in the minimap -- from 0 to 7
+        ## TODO : find how to initialize it better than this !!! ##
+        self.minimap = minimap
+        self.minimapPosition = rank
+        self.minimapCurrentPosition = rank
+        self.emptyMinimap = Image.open('data/minimaps/'+str(rank)+'.jpg')
+        # Player current rank
+        self.rank = rank
+        # Player board image
         self.boardbench = Image.open('data/analyze_boards/01.jpg')
+        # Player champion list
         self.championsList = championsList.copy()
+        # Player champions position
+        self.oneStarchampionsPosition = []
+        self.twoStarchampionsPosition = []
+        self.isEmptyMinimap()                
+    def updateBoardBench(self,im):
+        # Updates the board/bench image of the player
+        self.boardbench = im
+        self.findChampionsPosition()
+        self.findItems()
+
+    def updateMinimap(self,im):
+        self.minimap = im
 
     def isEmptyMinimap(self):
-        print(cv.minMaxLoc(cv.matchTemplate(self.minimap,self.LittleLegendMinimap,3))))
-        return True
+        if verbose:
+            print(len(np.nonzero( cv.subtract(np.array(self.emptyMinimap),np.array(self.minimap)) > 15)[0]))
+        if len(np.nonzero( cv.subtract(np.array(self.emptyMinimap),np.array(self.minimap)) > 15)[0]) > 30:
+#        if np.inner(normalize_array(np.array(self.emptyMinimap).flatten()),normalize_array(np.array(self.minimap).flatten())) > 0.98:              OLD CONDITION
+            self.minimapEmpty = False
+        else:
+            self.minimapEmpty = True
+        return self.minimapEmpty
 
-    def findItems(self):
-        toCompare = Image.open('data/items/spatula.jpg')
-        result = cv.matchTemplate(np.array(self.boardbench),np.array(toCompare),3)
-        min_val, max_val, min_loc, max_loc = cv.minMaxLoc(result)
+    def setLittleLegendMinimap(self,img):
+        self.imgLittleLegendMinimap = img
+        self.littleLegendMinimap = np.array(self.imgLittleLegendMinimap)
 
-    def findChampion(self):
+    def findChampionsPosition(self):
         toCompare1 = Image.open('data/HB/HB1.jpg')
         result1 = cv.matchTemplate(np.array(self.boardbench),np.array(toCompare1),3)
         toCompare2 = Image.open('data/HB/HB2.jpg')
@@ -79,26 +104,9 @@ class player:
         index1 = np.nonzero(result1 > 0.97)
         index2 = np.nonzero(result2 > 0.97)
 
-        list_item = glob.glob('data/items/*.jpg')
-        for item in list_item:
-            toCompareItem = normalize_array(np.array(Image.open(item)).flatten()*1.0)
-            for i in range(len(index1[0])):
-                toCompare = normalize_array(np.array(self.boardbench.crop((index1[1][i] + crop_diffHBitem[0],index1[0][i]+ crop_diffHBitem[1],index1[1][i] + crop_diffHBitem[2],index1[0][i] + crop_diffHBitem[3]))).flatten()*1.0)
-#                print(np.inner(toCompare,toCompareItem))
-                if np.inner(toCompare,toCompareItem) > 0.95:
-                    out = item.replace('data/items\\','')
-                    out = out.replace('.jpg','')
-                    if verbose:
-                        print('Nous avons trouvé un objet : ' + out)
-            for i in range(len(index2[0])):
-                toCompare = normalize_array(np.array(self.boardbench.crop((index2[1][i] + crop_diffHB2item[0],index2[0][i]+ crop_diffHB2item[1],index2[1][i] + crop_diffHB2item[2],index2[0][i] + crop_diffHB2item[3]))).flatten()*1.0)
-#                print(np.inner(toCompare,toCompareItem))
-                if np.inner(toCompare,toCompareItem) > 0.95:
-                    out = item.replace('data/items\\','')
-                    out = out.replace('.jpg','')
-                    if verbose:
-                        print('Nous avons trouvé un objet : ' + out)
-
+        self.oneStarchampionsPosition = index1
+        self.twoStarchampionsPosition = index2
+        
         if RecordNewItems == True:
             # From 1 star champions
             for i in range(len(index1[0])):
@@ -114,11 +122,30 @@ class player:
                 fn = 'data/potential_items/' + temps + '2222222222222.jpg'
                 self.boardbench.crop((index2[1][i] + crop_diffHB2item[0],index2[0][i]+ crop_diffHB2item[1],index2[1][i] + crop_diffHB2item[2],index2[0][i] + crop_diffHB2item[3])).save(fn)
                 time.sleep(0.1)
+
+    def findItems(self):
+        pos1 = self.oneStarchampionsPosition
+        pos2 = self.twoStarchampionsPosition
+        list_item = glob.glob('data/items/*.jpg')
+        for item in list_item:
+            toCompareItem = normalize_array(np.array(Image.open(item)).flatten()*1.0)
+            for i in range(len(pos1[0])):
+                toCompare = normalize_array(np.array(self.boardbench.crop((pos1[1][i] + crop_diffHBitem[0],pos1[0][i]+ crop_diffHBitem[1],pos1[1][i] + crop_diffHBitem[2],pos1[0][i] + crop_diffHBitem[3]))).flatten()*1.0)
+                if np.inner(toCompare,toCompareItem) > 0.95:
+                    out = item.replace('data/items\\','').replace('.jpg','')
+                    if verbose:
+                        print('Nous avons trouvé un objet : ' + out)
+            for i in range(len(pos2[0])):
+                toCompare = normalize_array(np.array(self.boardbench.crop((pos2[1][i] + crop_diffHB2item[0],pos2[0][i]+ crop_diffHB2item[1],pos2[1][i] + crop_diffHB2item[2],pos2[0][i] + crop_diffHB2item[3]))).flatten()*1.0)
+                if np.inner(toCompare,toCompareItem) > 0.95:
+                    out = item.replace('data/items\\','').replace('.jpg','')
+                    if verbose:
+                        print('Nous avons trouvé un objet : ' + out)
+                        
+    def identifyChampions(self):
+        pass
         
-    def updateBoardBench(self,im):
-        self.boardbench = im
-        self.findItems()
-        self.findChampion()
+
 
 class game:
     def crop_image(self):
@@ -132,7 +159,7 @@ class game:
         self.minimap = self.im.crop(crop_minimap)
         self.minimaps = []
         for minimap in crop_minimaps:
-            self.minimaps.append(np.array(self.minimap.crop(minimap)))
+            self.minimaps.append(self.minimap.crop(minimap))
         if verbose:
             print('Image cropped')
 
@@ -187,12 +214,17 @@ class game:
                 value = 0
                 indexMiniMap = 0
                 for minimap in self.minimaps:
-                    min_val, val_, min_loc, max_loc = cv.minMaxLoc(cv.matchTemplate(player.LittleLegendMinimap,minimap,3))
-                    print(val_,indexMiniMap)
+                    min_val, val_, min_loc, max_loc = cv.minMaxLoc(cv.matchTemplate(player.littleLegendMinimap,np.array(minimap),3))
+#                    print(val_,indexMiniMap)
                     if val_ > value:
                         player.minimapCurrentPosition = indexMiniMap
                         value = val_
                     indexMiniMap = indexMiniMap + 1
+
+    def initializeLittleLegendMinimap(self):
+        for player in self.players:
+            min_val, val_, min_loc, max_loc = cv.minMaxLoc(cv.matchTemplate(np.array(player.imgLittleLegend.resize((13,13))),np.array(player.minimap),3))
+            player.setLittleLegendMinimap(player.minimap.crop((max_loc[0],max_loc[1],max_loc[0]+13,max_loc[1]+13)))
 
     def localizePlayers(self):
         mat_right = np.array(self.imright)
@@ -243,25 +275,30 @@ class game:
         for i in range(len(pLoc[0])):
             for j in range(len(temp)):
                 if pLoc[0,i] == temp[j]:
-                    pOrder.append(j+1)
+                    pOrder.append(j)
         self.pOrder = pOrder
         self.pLocxSorted = temp
         self.pLocx = pLoc[0]
 
     def initialize_players(self):
         list_players = []
-        list_players.append(player(np.array(Image.open('data/checks/keyPlayer.jpg')),np.array(Image.open('data/checks/littleLegendPlayer.jpg')),self.pOrder[0]))
+        list_players.append(player(np.array(Image.open('data/checks/keyPlayer.jpg')),Image.open('data/checks/littleLegendPlayer.jpg'),self.minimaps[self.pOrder[0]],self.pOrder[0]))
         for i in range(1,self.pLoc.shape[1]):
             key = np.array(self.imright.crop([crop_id[0]+self.pLoc[1,i],crop_id[1]+self.pLoc[0,i],crop_id[2]+self.pLoc[1,i],crop_id[3]+self.pLoc[0,i]]))
-            littleLegend = np.array(self.imright.crop([crop_littleLegend[0]+self.pLoc[1,i],crop_littleLegend[1]+self.pLoc[0,i],crop_littleLegend[2]+self.pLoc[1,i],crop_littleLegend[3]+self.pLoc[0,i]]))
-            list_players.append(player(key,littleLegend,self.pOrder[i]))
+            imgLittleLegend = self.imright.crop([crop_littleLegend[0]+self.pLoc[1,i],crop_littleLegend[1]+self.pLoc[0,i],crop_littleLegend[2]+self.pLoc[1,i],crop_littleLegend[3]+self.pLoc[0,i]])
+            minimap = self.minimaps[self.pOrder[i]]
+            list_players.append(player(key,imgLittleLegend,minimap,self.pOrder[i]))
             Image.fromarray(key).save('data/checks/keyPlayer_'+str(i)+'.jpg')
-            Image.fromarray(littleLegend).save('data/checks/littleLegendPlayer_'+str(i)+'.jpg')
-        self.players = list_players
+            imgLittleLegend.save('data/checks/littleLegendPlayer_'+str(i)+'.jpg')
+        self.players = [list_players[list_players[i].rank] for i in self.pOrder]
         if verbose:
             print('We have initialized ' + str(len(self.players)) + ' players!')
         self.playersInitialized = True
 
+    def updateMinimapPlayers(self):
+        for player in self.players:
+            player.updateMinimap(self.minimaps[player.minimapPosition])
+                            
     def __init__(self,im):
         self.playersInitialized = False
         self.update(im)
@@ -277,11 +314,14 @@ class game:
             self.localizePlayers()
             if self.playersInitialized == False:
                 self.initialize_players()
+                self.initializeLittleLegendMinimap()
             else:
-                self.localizePlayersMinimap()
-            if len(self.pLoc) != 0:
-                self.find_players()
-                self.associateBoard()
+                if len(self.pLoc) != 0:
+                    self.find_players()
+                    self.associateBoard()
+        if self.playersInitialized == True:
+            self.updateMinimapPlayers()
+            self.localizePlayersMinimap()
 
     def associateBoard(self):
         if self.POV == True:
@@ -291,7 +331,7 @@ class game:
 
     def find_players(self):
         playersPosition = []
-        self.players[0].order = self.pOrder[0]
+        self.players[0].rank = self.pOrder[0]
         for i in range(1,self.pLoc.shape[1]):
             mat1 =  normalize_array(np.array(self.imright.crop([crop_id[0]+self.pLoc[1,i],crop_id[1]+self.pLoc[0,i],crop_id[2]+self.pLoc[1,i],crop_id[3]+self.pLoc[0,i]])).flatten())
             val = 0
@@ -302,7 +342,7 @@ class game:
                 if val_ > val:
                     index = j
                     val = val_
-            self.players[index].order = self.pOrder[i]
+            self.players[index].rank = self.pOrder[i]
             if verbose:
                 print(val)
                 print(index)
@@ -331,6 +371,9 @@ class game:
 # Health bar cropping
 #Image.open('data/analyze_boards/01.jpg').crop((925,537,930,543)).save('data/HB/HB1.jpg')
 #Image.open('data/analyze_boards/04.jpg').crop((866,363,874,369)).save('data/HB/HB2.jpg')
+
+g = game(Image.open('data/analyze_boards/01.jpg'))
+
 '''
 list_item = glob.glob('data/analyze_boards/08.jpg')
 for item in list_item:
@@ -344,11 +387,6 @@ for minimap in crop_minimaps:
     Image.open('data/littleLegends/minimap.jpg').crop(minimap).save('data/littleLegends/minimap_'+str(i)+'.jpg')
     i = i +1
     
-'''
-g = game(Image.open('data/analyze_boards/01.jpg'))
-
-
-'''
 toCompare1 = Image.open('data/littleLegends/test.jpg').resize((13,13))
 toCompare2 = Image.open('data/analyze_boards/01.jpg').crop(crop_minimap)
 result = cv.matchTemplate(np.array(toCompare1),np.array(toCompare2),3)
