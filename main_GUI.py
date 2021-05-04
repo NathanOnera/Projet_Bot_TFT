@@ -102,23 +102,35 @@ class Application(tk.Tk):
         self.labelInfoNbPlayers = tk.Label(self.generalGameInfo, text = 'Number of players: ' + str(len(self.game.players)))
         self.labelLabelKey = tk.Label(self.generalGameInfo, text = 'Key')
         self.labelLabelOrder = tk.Label(self.generalGameInfo, text = 'Rank')
+        self.labelLabelCurrentMinimapPosition = tk.Label(self.generalGameInfo, text = 'Current minimap position')
+        self.labelLabelLittleLegend = tk.Label(self.generalGameInfo, text = 'Little Legend')
         # PLAYERS INFO
         self.listlabelInfoPlayersKey = []
+        self.listlabelInfoPlayersLittleLegend = []
         self.listlabelInfoPlayersOrder = []
+        self.listlabelInfoPlayersMinimapCurrentPosition = []
         for player in self.game.players:
-            tkimage_ = ImageTk.PhotoImage(player.img)
+            tkimage_ = ImageTk.PhotoImage(player.imgKey)
             labelKey = tk.Label(self.generalGameInfo, image=tkimage_)
             labelKey.image = tkimage_
+            tkimage_ = ImageTk.PhotoImage(player.imgLittleLegend)
+            labelLittleLegend = tk.Label(self.generalGameInfo, image=tkimage_)
+            labelLittleLegend.image = tkimage_
             self.listlabelInfoPlayersKey.append(labelKey)
+            self.listlabelInfoPlayersLittleLegend.append(labelLittleLegend)
             labelOrder = tk.Label(self.generalGameInfo, text = str(player.order))
+            labelMinimapCurrentPosition = tk.Label(self.generalGameInfo, text = str(player.minimapCurrentPosition))
             self.listlabelInfoPlayersOrder.append(labelOrder)
+            self.listlabelInfoPlayersMinimapCurrentPosition.append(labelMinimapCurrentPosition)
 
         ## TOP RIGHT WINDOW
         # Menu button
-        self.menuButtonBoards = tk.Menubutton(self.playersBoard, text= 'Select the player you want to scout')
+        self.menuButtonBoards = tk.Menubutton(self.playersBoard, text= 'Whole image')
         self.menuButtonBoards.menu = tk.Menu(self.menuButtonBoards,tearoff = 0)
         self.menuButtonBoards['menu'] = self.menuButtonBoards.menu
         self.playerBoardInt = tk.IntVar()
+        self.playerBoardInt.set(8)
+        self.menuButtonBoards.menu.add_radiobutton ( label="Whole image", variable = self.playerBoardInt, value = 8, command = self.displayPlayerBoard)
         for i in range(len(self.game.players)):
             self.menuButtonBoards.menu.add_radiobutton ( label="Player " + str(i), variable = self.playerBoardInt, value = i, command = self.displayPlayerBoard)
         # Board picture
@@ -126,6 +138,7 @@ class Application(tk.Tk):
         self.imagePlayerBoard = ImageTk.PhotoImage(self.game.players[0].boardbench.resize(self.imagePlayerBoardSize))
         self.labelPlayerBoard = tk.Label(self.playersBoard, image=self.imagePlayerBoard)
         self.labelPlayerBoard.image = self.imagePlayerBoard
+        self.displayPlayerBoard()
 
         ## championsOut
         s = tk.ttk.Style(self)
@@ -183,11 +196,15 @@ class Application(tk.Tk):
         self.labelInfodmgPOV.grid(row = 4, sticky='w')
         self.labelInfoNbPlayers.grid(row = 5, sticky='w')
         self.labelLabelKey.grid(row = 6, column = 0, sticky = 'w')
-        self.labelLabelOrder.grid(row = 6, column = 1, sticky = 'e')
+        self.labelLabelLittleLegend.grid(row = 6, column = 1, sticky = '')
+        self.labelLabelOrder.grid(row = 6, column = 2, sticky = 'e')
+        self.labelLabelCurrentMinimapPosition.grid(row = 6, column = 3, sticky = 'e')
         # PLAYERS INFO
         for i in range(len(self.game.players)):
             self.listlabelInfoPlayersKey[i].grid(column = 0, sticky='w')
-            self.listlabelInfoPlayersOrder[i].grid(row = self.listlabelInfoPlayersKey[i].grid_info()['row'],column = 1, sticky='e')
+            self.listlabelInfoPlayersLittleLegend[i].grid(row = self.listlabelInfoPlayersKey[i].grid_info()['row'], column = 1, sticky='')
+            self.listlabelInfoPlayersOrder[i].grid(row = self.listlabelInfoPlayersKey[i].grid_info()['row'],column = 2, sticky='e')
+            self.listlabelInfoPlayersMinimapCurrentPosition[i].grid(row = self.listlabelInfoPlayersKey[i].grid_info()['row'],column = 3, sticky='e')
         
         ## TOP RIGHT WINDOW
         #BOARD PICTURES AND MENU BUTTON
@@ -228,12 +245,11 @@ class Application(tk.Tk):
         self.labelInfoPOV.configure(text = 'POV: ' +  str(self.game.POV))
         self.labelInfodmgPOV.configure(text = 'dmg POV: ' + str(self.game.dmgPOV))
         self.labelInfoNbPlayers.configure(text = 'Number of players: ' + str(len(self.game.players)))
-        self.labelLabelKey.configure(text = 'Key2')
-        self.labelLabelOrder.configure(text = 'Rank2')
         
         # PLAYERS INFO
         for i in range(len(self.game.players)):
             self.listlabelInfoPlayersOrder[i].configure(text = str(self.game.players[i].order))
+            self.listlabelInfoPlayersMinimapCurrentPosition[i].configure(text = str(self.game.players[i].minimapCurrentPosition))
         
         self.displayPlayerBoard()
         self.updateProgressBarChampions(self.game.championsList)
@@ -250,9 +266,14 @@ class Application(tk.Tk):
         self.menu_button.grid()
         
     def displayPlayerBoard(self):
-        self.imagePlayerBoard = ImageTk.PhotoImage(self.game.players[self.playerBoardInt.get()].boardbench.resize(self.imagePlayerBoardSize))
-        self.labelPlayerBoard.configure(image=self.imagePlayerBoard)
-        self.labelPlayerBoard.image = self.imagePlayerBoard
+        if self.playerBoardInt.get() == 8:
+            self.imagePlayerBoard = ImageTk.PhotoImage(self.game.im.resize(self.imagePlayerBoardSize))
+            self.labelPlayerBoard.configure(image=self.imagePlayerBoard)
+            self.labelPlayerBoard.image = self.imagePlayerBoard
+        else:
+            self.imagePlayerBoard = ImageTk.PhotoImage(self.game.players[self.playerBoardInt.get()].boardbench.resize(self.imagePlayerBoardSize))
+            self.labelPlayerBoard.configure(image=self.imagePlayerBoard)
+            self.labelPlayerBoard.image = self.imagePlayerBoard
 
     def update_Players(self):
         self.game.playersInitialized = False
